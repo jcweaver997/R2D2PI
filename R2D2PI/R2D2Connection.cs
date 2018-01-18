@@ -140,10 +140,6 @@ namespace R2D2PI
             socket.Bind(new IPEndPoint(IPAddress.Any,port));
             other = new IPEndPoint(IPAddress.Any, port);
             Console.WriteLine("waiting for connection from controller...");
-            /*byte[] buffer = new byte[maxMessageSize];
-            EndPoint remote = (EndPoint)other;
-            int numReceived = socket.ReceiveFrom(buffer, ref remote);
-            Console.WriteLine("Connected");*/
             listenThread = new Thread(ListenThread);
             listenerRunning = true;
             listenThread.Start();

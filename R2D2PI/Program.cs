@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -7,49 +8,120 @@ using System.Threading.Tasks;
 
 namespace R2D2PI
 {
-    class Program
+
+    class R2D2Pi
     {
+        SerialPort sabertooth;
+        R2D2Connection connection;
+
         static void Main(string[] args)
         {
-            Program p = new Program();
+            R2D2Pi p = new R2D2Pi();
             p.Start();
+        }
+
+        public R2D2Pi()
+        {
+            connection = new R2D2Connection(R2D2Connection.ConnectionType.R2D2, OnReceive);
+            ConnectSabertooth();
+        }
+
+        private void ConnectSabertooth()
+        {
+            foreach (string s in SerialPort.GetPortNames())
+            {
+                Console.WriteLine(s);
+            }
+            sabertooth = new SerialPort("/dev/ttyS0", 9600, Parity.None, 8, StopBits.One);
+            try
+            {
+                sabertooth.Open();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message+" Retrying...");
+                System.Threading.Thread.Sleep(1000);
+                ConnectSabertooth();
+                return;
+            }
+
+            byte[] buffer = new byte[1];
+            buffer[0] = 0;
+            WriteToSabertooth(buffer);
+        }
+
+        ~R2D2Pi()
+        {
+            if (sabertooth != null)
+            {
+                byte[] buffer = new byte[1];
+                buffer[0] = 0;
+                WriteToSabertooth(buffer);
+            }
         }
 
         public void Start()
         {
-            R2D2Connection con1 = new R2D2Connection(R2D2Connection.ConnectionType.Controller, OnReceived);
-            R2D2Connection con2 = new R2D2Connection(R2D2Connection.ConnectionType.R2D2, OnReceive);
-            new Thread(() =>
-            {
-                con2.Connect();
-                while (true)
-                {
-                    con2.SendCommand(new R2D2Connection.Command(R2D2Connection.Commands.SetLeftDriveMotor, BitConverter.GetBytes(5f)), false);
-                    con2.SendCommand(new R2D2Connection.Command(R2D2Connection.Commands.SetRightDriveMotor, BitConverter.GetBytes(3f)), false);
-                    Thread.Sleep(10);
-                }
-
-            }).Start();
-            Thread.Sleep(1000);
-            con1.Connect();
-            int x = 0;
-            while (true)
-            {
-                x++;
-                con1.SendCommand(new R2D2Connection.Command(R2D2Connection.Commands.SetLeftDriveMotor, BitConverter.GetBytes((float)x)), false);
-                con1.SendCommand(new R2D2Connection.Command(R2D2Connection.Commands.SetRightDriveMotor, BitConverter.GetBytes(3f)), false);
-                Thread.Sleep(10);
-                
-            }
+            connection.Connect();
         }
+
 
         public void OnReceive(R2D2Connection.Command c)
         {
-            Console.WriteLine("R2D2: Command recieved "+ (byte)c.commandID+" value " +BitConverter.ToSingle(c.param,0));
+            switch (c.commandID)
+            {
+                case R2D2Connection.Commands.SetLeftDriveMotor:
+                    SetLeftMotor(c.param);
+                    break;
+                case R2D2Connection.Commands.SetRightDriveMotor:
+                    SetRightMotor(c.param);
+                    break;
+                default:
+                    break;
+            }
         }
-        public void OnReceived(R2D2Connection.Command c)
+
+        private void SetLeftMotor(byte[] para)
         {
-            Console.WriteLine("Cont: Command recieved " + (byte)c.commandID + " value " + BitConverter.ToSingle(c.param, 0));
+            float motorPercent = BitConverter.ToSingle(para, 0) + 1;
+            byte[] val = { (byte)(1 + motorPercent * 63) };
+            WriteToSabertooth(val);
         }
+
+        private void SetRightMotor(byte[] para)
+        {
+            float motorPercent = BitConverter.ToSingle(para, 0);
+            byte[] val = new byte[1];
+            // special case for weird resolution problem
+            if (motorPercent>0)
+            {
+                val[0] = (byte)(192 + motorPercent * 63) ;
+                
+            }else if (motorPercent < 0)
+            {
+                val[0] = (byte)(192 + motorPercent * 64);
+            }
+            else
+            {
+                val[0] = 192;
+            }
+
+            WriteToSabertooth(val);
+        }
+
+        private void WriteToSabertooth(byte[] val)
+        {
+            try
+            {
+                sabertooth.Write(val, 0, 1);
+            }catch(Exception e)
+            {
+                Console.WriteLine("Serial com error: "+e.Message);
+                ConnectSabertooth();
+            }
+
+        }
+
+
     }
 }
