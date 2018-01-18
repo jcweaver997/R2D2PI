@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO.Ports;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace R2D2PI
 {
@@ -40,7 +36,7 @@ namespace R2D2PI
             catch (Exception e)
             {
                 Console.WriteLine(e.Message+" Retrying...");
-                System.Threading.Thread.Sleep(1000);
+                Thread.Sleep(1000);
                 ConnectSabertooth();
                 return;
             }

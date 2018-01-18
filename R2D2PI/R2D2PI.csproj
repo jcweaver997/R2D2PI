@@ -43,7 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="R2D2Pi.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="R2D2Connection.cs" />
   </ItemGroup>
